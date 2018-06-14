@@ -4,6 +4,7 @@
 from urllib.parse import urlencode
 from .web_request import html_request
 import json
+from datetime import datetime
 
 BASE_URL_FB_API = 'http://openapi.tour.go.kr/openapi/service'
 END_POINT = 'TourismResourceStatsService/getPchrgTrrsrtVisitorList'
@@ -36,7 +37,6 @@ def pd_set_parameters(year = 0, month=0, sido='', gungu='', res_nm=''):
 def pd_fetch_tourspot_visitor(district='', tourspot='', year=0, month=0):
     # 자세한 URL 생성 fields 는 data.go.kr API 문서 참조
     url = pd_set_parameters(sido=district, res_nm=tourspot, year=year, month=month)
-
     paging = 1
 
     while True:
@@ -54,3 +54,25 @@ def pd_fetch_tourspot_visitor(district='', tourspot='', year=0, month=0):
         url = url.replace("pageNo={0}".format(paging), "pageNo={0}".format(paging + 1))
         paging += 1
         yield posts
+
+def pd_fetch_foreign_visitor(countrycode, year, month):
+    node = 'EdrcntTourismStatsService/getEdrcntTourismStatsList'
+    url = pd_gen_url(node=node,
+                     YM='{0:04d}{1:02d}'.format(year, month),
+                     NAT_CD=countrycode,
+                     ED_CD='E',
+                     _type='json',
+                     serviceKey=SERVICEKEY)
+
+    json_result = html_request(url=url, success=lambda x:json.loads(x))
+    # print(json_result)
+    json_response = json_result.get("response")
+    json_header = json_response.get("header")
+    result_message = json_header.get('resultMsg')
+    if 'OK' != result_message:
+        print("%s Error[%s] for request %s" % datetime.now(), result_message)
+        return None
+    else:
+        json_body = json_response.get("body")
+        json_items = json_body.get("items")
+        return json_items.get("item") if isinstance(json_items, dict) else None
